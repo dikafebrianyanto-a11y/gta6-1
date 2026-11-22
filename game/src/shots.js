@@ -33,6 +33,10 @@ function scriptedInput() {
     get sprint() {
       return input._sprint;
     },
+    /** Call form of the sprint check, matching the real keyboard input. */
+    sprintHeld() {
+      return input._sprint;
+    },
     get shooting() {
       return input._shoot;
     },

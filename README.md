@@ -4,7 +4,7 @@
 [![rank](https://make.fun/badge/gta6-01/dikafebrianyanto-a11y/gta6-1/rank.svg)](https://make.fun/bounty/gta6-01/leaderboard?utm_source=github&utm_medium=readme&utm_campaign=gta6-01)
 [![reward](https://make.fun/badge/gta6-01/dikafebrianyanto-a11y/gta6-1/reward.svg)](https://make.fun/bounty/gta6-01?utm_source=github&utm_medium=readme&utm_campaign=gta6-01)
 
-Solmar — Streets of the Sun: an original open-world crime game. Drive and steal cars across a sun-soaked city, outrun the police as your wanted level climbs, and run five story missions with Dex Marlowe.
+Solmar — Streets of the Sun is an open-world crime game set in the sun-baked coastal city of Solmar. Play through 7 story missions across Easy, Normal and Hard difficulty: ride a motorcycle through downtown traffic, dodge police roadblocks, run courier jobs across the city, and manage your wanted level from 0 to 5 as the heat rises. The HUD keeps you oriented with a live minimap, speed, cash, and mission objectives.
 
 ## Run it
 

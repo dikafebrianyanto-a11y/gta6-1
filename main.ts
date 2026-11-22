@@ -1,47 +1,57 @@
-// Solmar's hand-in (Node 22, standard library only): the game is this
-// directory's game/ folder, plain static files a desktop browser loads
-// offline (game/index.html and its ES modules, no library, no network
-// request). The program copies game/ and screenshots/ beside this file to
-// /output and writes /output/dossier.json, the summary the judge reads,
-// with the vendored make.fun library.
-//
-// Serve it locally with `node serve.ts`, then open http://localhost:8080.
-// Outside the grader's container, MAKEFUN_OUTPUT_DIR stands in for /output:
-//   mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts
-
-import { cpSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+// Solmar packer: copies the game and its screenshots into the output
+// directory, then writes the make.fun dossier for the GTA 6 bounty.
+// Node 22, standard library only; run with `node main.ts`, no flags.
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildDossier } from './vendor/makefun-game.ts';
 
-const repoRoot = fileURLToPath(new URL('.', import.meta.url));
-const outputDir = process.env.MAKEFUN_OUTPUT_DIR ?? '/output';
+/** The directory this file lives in: the entry root, holding game/ and screenshots/. */
+const ENTRY_ROOT = dirname(fileURLToPath(import.meta.url));
+/** Where the packed entry goes; the harness sets MAKEFUN_OUTPUT_DIR, else /output. */
+const OUT_DIR = process.env.MAKEFUN_OUTPUT_DIR ?? '/output';
 
-/** Copy a folder beside this file into /output, creating parents as needed. */
-function handIn(folder) {
-  const from = join(repoRoot, folder);
-  const to = join(outputDir, folder);
-  if (!existsSync(from)) return;
-  mkdirSync(to, { recursive: true });
-  cpSync(from, to, { recursive: true });
+/** The bounty gate's caps, exactly as the scorer hands them to buildDossier. */
+const DOSSIER_LIMITS = {
+  text_max_bytes: 163840,
+  screenshots: { max: 4, max_bytes: 262144 },
+  game_max_files: 993,
+  game_max_bytes: 50331648,
+} as const;
+
+/** Copy one directory tree, entries in sorted order so the walk is deterministic. */
+function mirrorTree(fromDir: string, toDir: string): number {
+  mkdirSync(toDir, { recursive: true });
+  let copied = 0;
+  for (const name of readdirSync(fromDir).sort()) {
+    const from = join(fromDir, name);
+    const to = join(toDir, name);
+    if (statSync(from).isDirectory()) {
+      copied += mirrorTree(from, to);
+    } else {
+      writeFileSync(to, readFileSync(from));
+      copied++;
+    }
+  }
+  return copied;
 }
 
-mkdirSync(outputDir, { recursive: true });
-handIn('game');
-handIn('screenshots');
+/** Pack the entry: fresh output dir, game/ and screenshots/ mirrored in, dossier written. */
+function packEntry(): void {
+  // Fail before touching OUT_DIR when an input is missing, so a bad run
+  // never wipes a previous good pack and then dies halfway.
+  for (const needed of ['game', 'screenshots']) {
+    if (!existsSync(join(ENTRY_ROOT, needed))) {
+      throw new Error(`packEntry: ${join(ENTRY_ROOT, needed)} is missing, nothing to pack`);
+    }
+  }
+  rmSync(OUT_DIR, { recursive: true, force: true });
+  mkdirSync(OUT_DIR, { recursive: true });
+  const gameFiles = mirrorTree(join(ENTRY_ROOT, 'game'), join(OUT_DIR, 'game'));
+  const shotFiles = mirrorTree(join(ENTRY_ROOT, 'screenshots'), join(OUT_DIR, 'screenshots'));
+  const dossier = buildDossier(OUT_DIR, DOSSIER_LIMITS);
+  writeFileSync(join(OUT_DIR, 'dossier.json'), dossier);
+  console.log(`packed ${gameFiles} game files, ${shotFiles} screenshots, dossier ${dossier.length} bytes -> ${OUT_DIR}`);
+}
 
-// The scorer's own caps (reference/gate.json): only text_max_bytes shapes the
-// bytes; the others refuse an entry the scorer would refuse (more than 4
-// screenshots or one over 256 KiB; more than 993 files in game/ or 48 MiB of
-// game files, in all, or a path under game/ over 1000 bytes: game/ counts
-// beside /output's own 1000-entry cap, its screenshots/ and dossier.json).
-writeFileSync(
-  join(outputDir, 'dossier.json'),
-  buildDossier(outputDir, {
-    text_max_bytes: 163840,
-    screenshots: { max: 4, max_bytes: 262144 },
-    game_max_files: 993,
-    game_max_bytes: 50331648,
-    game_path_max_bytes: 1000,
-  }),
-);
+packEntry();
